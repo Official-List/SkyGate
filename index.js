@@ -1,171 +1,105 @@
+// --- RENDER PORT BINDING (REQUIRED FOR FREE WEB SERVICE) ---
 const http = require('http');
 http.createServer((req, res) => {
-  res.write("Bot is online!");
+  res.write("SkyGate Discord Bot is Online!");
   res.end();
 }).listen(process.env.PORT || 8080);
-const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+
+// --- DISCORD BOT CODE STARTS HERE ---
+const { Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
 
 const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
+  ],
+  partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 
-const TOKEN = process.env.DISCORD_TOKEN;
-const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID;
-const AUTO_ROLE_ID = process.env.AUTO_ROLE_ID;
+// Settings & Configurations
+const CONFIG = {
+  VERIFY_CHANNEL_NAME: 'verify',
+  VERIFIED_ROLE_NAME: 'Verified',
+  LOG_CHANNEL_NAME: 'verify-logs'
+};
 
-// Define Slash Commands
-const commands = [
-    // /info Command
-    new SlashCommandBuilder()
-        .setName('info')
-        .setDescription('Displays SkyGate network links and server information'),
-
-    // /kick Command
-    new SlashCommandBuilder()
-        .setName('kick')
-        .setDescription('Kick a member from the server')
-        .addUserOption(option => 
-            option.setName('target')
-                  .setDescription('The member to kick')
-                  .setRequired(true))
-        .addStringOption(option => 
-            option.setName('reason')
-                  .setDescription('Reason for kicking')
-                  .setRequired(false))
-        .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
-
-    // /ban Command
-    new SlashCommandBuilder()
-        .setName('ban')
-        .setDescription('Ban a member from the server')
-        .addUserOption(option => 
-            option.setName('target')
-                  .setDescription('The member to ban')
-                  .setRequired(true))
-        .addStringOption(option => 
-            option.setName('reason')
-                  .setDescription('Reason for banning')
-                  .setRequired(false))
-        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
-].map(command => command.toJSON());
-
-// Register Slash Commands
-client.once('ready', async () => {
-    console.log(`SkyGate Bot successfully logged in as ${client.user.tag}`);
-    const rest = new REST({ version: '10' }).setToken(TOKEN);
-    try {
-        await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
-        console.log('Registered SkyGate slash commands globally.');
-    } catch (error) {
-        console.error('Error registering commands:', error);
-    }
+client.once('ready', () => {
+  console.log(`Logged in as ${client.user.tag}!`);
+  client.user.setActivity('Verification Portal', { type: 3 });
 });
 
-// Welcome Message & Auto-Role
-client.on('guildMemberAdd', async (member) => {
-    if (AUTO_ROLE_ID) {
-        const role = member.guild.roles.cache.get(AUTO_ROLE_ID);
-        if (role) member.roles.add(role).catch(console.error);
+// Command Handler for Setup
+client.on('messageCreate', async (message) => {
+  if (message.author.bot || !message.guild) return;
+
+  if (message.content === '!setup-verify') {
+    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      return message.reply('You need Administrator permissions to use this command.');
     }
 
-    const channel = member.guild.channels.cache.get(WELCOME_CHANNEL_ID);
-    if (!channel) return;
+    const embed = new EmbedBuilder()
+      .setTitle('Server Verification')
+      .setDescription('Click the button below to verify your account and gain access to the server.')
+      .setColor('#5865F2')
+      .setFooter({ text: 'SkyGate Protection System' });
 
-    const welcomeEmbed = new EmbedBuilder()
-        .setTitle(`Welcome to ${member.guild.name}!`)
-        .setDescription(`Hello <@${member.id}>, welcome to the community!\n\nCheck out our website and make sure to read the rules channel.`)
-        .setColor('#00FF7F')
-        .setThumbnail(member.user.displayAvatarURL())
-        .setFooter({ text: 'Skygate Network • skygate.gt.tc' });
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('verify_btn')
+        .setLabel('Verify')
+        .setStyle(ButtonStyle.Success)
+        .setEmoji('✅')
+    );
 
-    channel.send({ embeds: [welcomeEmbed] });
+    await message.channel.send({ embeds: [embed], components: [row] });
+    if (message.deletable) await message.delete();
+  }
 });
 
-// Command Handler & Moderation Logic
+// Interaction Handler for Buttons
 client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
+  if (!interaction.isButton()) return;
 
-    // Helper Function: Protect Owner & High Roles
-    const isProtected = (targetMember) => {
-        // 1. Protect Server Owner
-        if (targetMember.id === interaction.guild.ownerId) return 'owner';
-        // 2. Protect the Bot itself
-        if (targetMember.id === client.user.id) return 'bot';
-        // 3. Protect highest role hierarchy (cannot kick/ban someone higher than or equal to the bot/executor)
-        if (!targetMember.bannable && !targetMember.kickable) return 'hierarchy';
-        return false;
-    };
+  if (interaction.customId === 'verify_btn') {
+    let role = interaction.guild.roles.cache.find(r => r.name === CONFIG.VERIFIED_ROLE_NAME);
 
-    // /info
-    if (interaction.commandName === 'info') {
-        const infoEmbed = new EmbedBuilder()
-            .setTitle('SkyGate Network Info')
-            .setColor('#0099FF')
-            .addFields(
-                { name: 'Website', value: 'skygate.gt.tc', inline: true },
-                { name: 'Server IP', value: 'play.skygate.gt.tc', inline: true }
-            )
-            .setFooter({ text: 'SkyGate Main Utility Bot' });
-
-        return interaction.reply({ embeds: [infoEmbed] });
+    if (!role) {
+      try {
+        role = await interaction.guild.roles.create({
+          name: CONFIG.VERIFIED_ROLE_NAME,
+          color: '#2ECC71',
+          reason: 'SkyGate auto-created verification role'
+        });
+      } catch (err) {
+        console.error(err);
+        return interaction.reply({ content: 'Failed to create or assign the Verified role. Check my permissions.', ephemeral: true });
+      }
     }
 
-    // /kick
-    if (interaction.commandName === 'kick') {
-        const target = interaction.options.getMember('target');
-        const reason = interaction.options.getString('reason') || 'No reason provided.';
-
-        if (!target) return interaction.reply({ content: 'Member not found in this server.', ephemeral: true });
-
-        const protectionStatus = isProtected(target);
-        if (protectionStatus === 'owner') {
-            return interaction.reply({ content: '❌ **Action Denied:** You cannot kick the server owner!', ephemeral: true });
-        }
-        if (protectionStatus === 'bot') {
-            return interaction.reply({ content: '❌ **Action Denied:** The bot cannot kick itself!', ephemeral: true });
-        }
-        if (protectionStatus === 'hierarchy') {
-            return interaction.reply({ content: '❌ **Action Denied:** This user has a role equal to or higher than my permission level.', ephemeral: true });
-        }
-
-        try {
-            await target.kick(reason);
-            await interaction.reply(`✅ Kicked **${target.user.tag}** | **Reason:** ${reason}`);
-        } catch (err) {
-            await interaction.reply({ content: 'Failed to kick member. Check role hierarchy.', ephemeral: true });
-        }
+    if (interaction.member.roles.cache.has(role.id)) {
+      return interaction.reply({ content: 'You are already verified!', ephemeral: true });
     }
 
-    // /ban
-    if (interaction.commandName === 'ban') {
-        const target = interaction.options.getMember('target');
-        const reason = interaction.options.getString('reason') || 'No reason provided.';
+    try {
+      await interaction.member.roles.add(role);
+      await interaction.reply({ content: 'You have been successfully verified! Welcome to the server.', ephemeral: true });
 
-        if (!target) return interaction.reply({ content: 'Member not found in this server.', ephemeral: true });
-
-        const protectionStatus = isProtected(target);
-        if (protectionStatus === 'owner') {
-            return interaction.reply({ content: '❌ **Action Denied:** You cannot ban the server owner!', ephemeral: true });
-        }
-        if (protectionStatus === 'bot') {
-            return interaction.reply({ content: '❌ **Action Denied:** The bot cannot ban itself!', ephemeral: true });
-        }
-        if (protectionStatus === 'hierarchy') {
-            return interaction.reply({ content: '❌ **Action Denied:** This user has a role equal to or higher than my permission level.', ephemeral: true });
-        }
-
-        try {
-            await target.ban({ reason });
-            await interaction.reply(`⛔ Banned **${target.user.tag}** | **Reason:** ${reason}`);
-        } catch (err) {
-            await interaction.reply({ content: 'Failed to ban member. Check role hierarchy.', ephemeral: true });
-        }
+      const logChannel = interaction.guild.channels.cache.find(c => c.name === CONFIG.LOG_CHANNEL_NAME);
+      if (logChannel) {
+        const logEmbed = new EmbedBuilder()
+          .setTitle('User Verified')
+          .setDescription(`${interaction.user.tag} (${interaction.user.id}) completed verification.`)
+          .setColor('#2ECC71')
+          .setTimestamp();
+        logChannel.send({ embeds: [logEmbed] });
+      }
+    } catch (err) {
+      console.error(err);
+      interaction.reply({ content: 'An error occurred while granting your role. Please contact an admin.', ephemeral: true });
     }
+  }
 });
 
-client.login(TOKEN);
+client.login(process.env.TOKEN);
