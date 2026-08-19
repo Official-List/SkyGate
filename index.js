@@ -1,3 +1,8 @@
+const http = require('http');
+http.createServer((req, res) => {
+  res.write("Bot is online!");
+  res.end();
+}).listen(process.env.PORT || 8080);
 const { Client, GatewayIntentBits, EmbedBuilder, REST, Routes, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
 const client = new Client({
