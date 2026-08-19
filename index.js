@@ -1,13 +1,56 @@
-// --- RENDER PORT BINDING (REQUIRED FOR FREE WEB SERVICE) ---
 const http = require('http');
+
 http.createServer((req, res) => {
-  res.write("SkyGate Discord Bot is Online!");
-  res.end();
+  if (req.method === 'POST' && req.url === '/interactions') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ type: 1 }));
+    });
+    return;
+  }
+
+  res.writeHead(200, { 'Content-Type': 'text/html' });
+  if (req.url === '/linked-roles') {
+    res.end('<h1>SkyGate Linked Roles</h1>');
+  } else if (req.url === '/terms') {
+    res.end('<h1>SkyGate Terms of Service</h1>');
+  } else if (req.url === '/privacy') {
+    res.end('<h1>SkyGate Privacy Policy</h1>');
+  } else {
+    res.end('<h1>SkyGate Discord Bot is Online!</h1>');
+  }
 }).listen(process.env.PORT || 8080);
-
+// -------------------------------------------------------------
+// PASTE YOUR EXISTING BOT CODE BELOW THIS LINE (discord.js, client.login, etc.)
 // --- DISCORD BOT CODE STARTS HERE ---
+const { Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder } = require('discord.js');
 const { Client, GatewayIntentBits, Partials, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+const http = require('http');
 
+http.createServer((req, res) => {
+  if (req.method === 'POST' && req.url === '/interactions') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ type: 1 }));
+    });
+    return;
+  }
+
+  res.writeHead(200, { 'Content-Type': 'text/html' });
+  if (req.url === '/linked-roles') {
+    res.end('<h1>SkyGate Linked Roles</h1>');
+  } else if (req.url === '/terms') {
+    res.end('<h1>SkyGate Terms of Service</h1>');
+  } else if (req.url === '/privacy') {
+    res.end('<h1>SkyGate Privacy Policy</h1>');
+  } else {
+    res.end('<h1>SkyGate Discord Bot is Online!</h1>');
+  }
+}).listen(process.env.PORT || 8080);
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
