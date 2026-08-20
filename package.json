@@ -1,10 +1,23 @@
 {
   "name": "skygate-bot",
   "version": "1.0.0",
-  "description": "SkyGate Discord Bot",
+  "description": "SkyGate Discord Bot Server and Interaction Handler",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "skygate",
+    "express",
+    "render"
+  ],
+  "author": "SkyGate Team",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "discord-interactions": "^4.4.0",
