@@ -1,6 +1,25 @@
 // --- 1. RENDER PORT BINDING & HTTP SERVER ---
 const http = require('http');
+const express = require('express');
+const { verifyKeyMiddleware } = require('discord-interactions');
 
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Discord interaction ping handler
+app.post('/api/interactions', verifyKeyMiddleware(process.env.DISCORD_PUBLIC_KEY), (req, res) => {
+  const { type } = req.body;
+  if (type === 1) {
+    return res.send({ type: 1 });
+  }
+});
+
+// Linked roles handler
+app.get('/verify-user', (req, res) => {
+  res.send("Linked Roles active!");
+});
+
+app.listen(PORT, () => console.log(`Web server listening on port ${PORT}`));
 http.createServer((req, res) => {
   // Handle Discord Interactions Endpoint Ping
   if (req.method === 'POST' && req.url === '/interactions') {
